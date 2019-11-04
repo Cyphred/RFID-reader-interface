@@ -1,9 +1,12 @@
 import com.fazecast.jSerialComm.*;
+
+import java.io.PrintWriter;
 import java.util.Scanner;
 
 public class RFIDReaderInterface {
     private SerialPort selectedPort; // The selected port to be used
-    private Scanner sc = new Scanner(System.in); // Temprary Scanner TODO Remove this when done
+    private Scanner serialReader;
+    private PrintWriter serialWriter;
 
     public RFIDReaderInterface() {
         System.out.println("===== RFIDReaderInterface by Cyphred =====");
@@ -51,7 +54,12 @@ public class RFIDReaderInterface {
         }
 
         if (portOpened) {
+            serialReader = new Scanner(selectedPort.getInputStream()); // Start input stream for receiving data over serial
+            serialWriter = new PrintWriter(selectedPort.getOutputStream()); // Start output stream for receiving data over serial
             System.out.println("Waiting for device to be ready");
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {}
         }
         else {
             System.out.println("Could not open any ports.");
@@ -61,19 +69,38 @@ public class RFIDReaderInterface {
     }
 
     public char[] listenForIDSerialNumber() {
-        Scanner data = new Scanner(selectedPort.getInputStream());
+        serialPrint("scan");
         String fetchedData = "";
-        while (data.hasNextLine()) {
-            fetchedData = data.nextLine();
-            if (fetchedData.length() == 40) {
+        while (serialReader.hasNextLine()) {
+            fetchedData = serialReader.nextLine();
+            if (fetchedData.length() == 8) {
                 break;
             }
         }
+        return fetchedData.toCharArray();
+    }
 
-        char[] returnData = new char[8];
-        for (int x = 0; x < 8; x++) {
-            returnData[x] = fetchedData.charAt(x);
+    public boolean verifyConnection(){
+        serialPrint("ping");
+        String temp = serialRead();
+        System.out.println(temp);
+        if (temp.equals("pong")) {
+            return true;
         }
-        return returnData;
+        return false;
+    }
+
+    private void serialPrint(String input) {
+        serialWriter.print(input);
+        serialWriter.flush();
+    }
+
+    private String serialRead() {
+        String fetchedData = "";
+        while (serialReader.hasNextLine()) {
+            fetchedData = serialReader.nextLine();
+        }
+        System.out.println("Read: ");
+        return fetchedData;
     }
 }
