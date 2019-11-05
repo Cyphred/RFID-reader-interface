@@ -2,38 +2,34 @@ import java.util.Scanner;
 
 public class Main {
     public static Scanner sc = new Scanner(System.in); // TODO Remove temporary Scanner in Main Class
-    public static RFIDReaderInterface rfidInterface = new RFIDReaderInterface();
-    public static void main(String[] args) {
+    public static RFIDReaderInterface device = new RFIDReaderInterface();
+    public static void main(String[] args) throws InterruptedException {
         int menuState = 0;
 
         while (menuState != -1) {
             if (menuState == 0) {
                 System.out.println("[MENU]");
-                System.out.println("1 - Scan RFID");
-                System.out.println("2 - Verify Connection");
+                System.out.println("1 - Basic Scan");
+                System.out.println("2 - Challenge");
 
-                menuState = sc.nextInt();
+                menuState = Integer.parseInt(sc.nextLine());
             }
             else if (menuState == 1) {
-                System.out.println("Scan your RFID");
-                char[] serialNumber = rfidInterface.listenForIDSerialNumber();
-                System.out.print("Serial Number: ");
-                for (char sn: serialNumber) {
-                    System.out.print(sn);
-                }
-                System.out.println();
-
+                String serialNumber = device.scan();
+                device.clearLastStringRead();
+                System.out.println("[Basic Scan]");
+                System.out.println("Serial Number: " + serialNumber);
                 menuState = 0;
             }
             else if (menuState == 2) {
-                System.out.println("Verifying connection to RFID Reader...");
-                if (rfidInterface.verifyConnection()) {
-                    System.out.println("Connected.");
+                System.out.print("Enter passcode : ");
+                boolean challengeResult = device.challenge(sc.nextLine());
+                if (challengeResult) {
+                    System.out.println("Challenge passed");
                 }
                 else {
-                    System.out.println("Disconnected.");
+                    System.out.println("Challenge failed");
                 }
-
                 menuState = 0;
             }
             else {

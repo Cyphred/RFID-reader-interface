@@ -1,12 +1,15 @@
 import com.fazecast.jSerialComm.*;
 
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.Scanner;
 
 public class RFIDReaderInterface {
     private SerialPort selectedPort; // The selected port to be used
     private Scanner serialReader;
     private PrintWriter serialWriter;
+    private String lastStringRead = "";
+    private byte[] bytesRead;
 
     public RFIDReaderInterface() {
         System.out.println("===== RFIDReaderInterface by Cyphred =====");
@@ -16,7 +19,7 @@ public class RFIDReaderInterface {
         SerialPort availablePorts[] = SerialPort.getCommPorts(); // Gets all available COM Ports
         System.out.println(availablePorts.length + " COM Port/s found");
 
-        int portNumbers = 1;
+        int portNumbers = 1; // gives port numbers when printed
         // lists all available ports to console
         for (SerialPort sp: availablePorts) {
             System.out.println("  " + portNumbers++ + ". " + sp.getDescriptivePortName());
@@ -54,6 +57,28 @@ public class RFIDReaderInterface {
         }
 
         if (portOpened) {
+            selectedPort.addDataListener(new SerialPortDataListener() {
+                @Override
+                public int getListeningEvents() {
+                    return SerialPort.LISTENING_EVENT_DATA_AVAILABLE;
+                }
+
+                @Override
+                public void serialEvent(SerialPortEvent event) {
+                    if (event.getEventType() != SerialPort.LISTENING_EVENT_DATA_AVAILABLE)
+                        return;
+                    bytesRead = new byte[selectedPort.bytesAvailable()];
+                    int numRead = (selectedPort.readBytes(bytesRead, bytesRead.length) - 2);
+                    try {
+                        lastStringRead = new String(bytesRead, "UTF-8");
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+                    // TODO Remove this temporary print statement
+                    // For checking data received through serial
+                    //System.out.println(numRead + " bytes read, " + lastStringRead.length() + " characters : \"" + lastStringRead + "\"");
+                }
+            });
             serialReader = new Scanner(selectedPort.getInputStream()); // Start input stream for receiving data over serial
             serialWriter = new PrintWriter(selectedPort.getOutputStream()); // Start output stream for receiving data over serial
             System.out.println("Waiting for device to be ready");
@@ -68,24 +93,24 @@ public class RFIDReaderInterface {
         System.out.println("===== RFIDReaderInterface: End of Initialization =====");
     }
 
-    public char[] listenForIDSerialNumber() {
-        serialPrint("scan");
-        String fetchedData = "";
-        while (serialReader.hasNextLine()) {
-            fetchedData = serialReader.nextLine();
-            if (fetchedData.length() == 8) {
-                break;
-            }
+    public String scan() {
+        serialPrint("scan\n0");
+        while (lastStringRead.length() != 10) {
+            System.out.print("");
         }
-        return fetchedData.toCharArray();
+        return getLastStringRead();
     }
 
-    public boolean verifyConnection(){
-        serialPrint("ping");
-        String temp = serialRead();
-        System.out.println(temp);
-        if (temp.equals("pong")) {
-            return true;
+    public boolean challenge(String passcode) throws InterruptedException {
+        serialPrint("challenge\n" + passcode);
+        while (true) {
+            if (getLastStringRead().equals("ok")) {
+                return true;
+            }
+            else if (getLastStringRead().equals("no")) {
+                break;
+            }
+            System.out.print("");
         }
         return false;
     }
@@ -95,12 +120,15 @@ public class RFIDReaderInterface {
         serialWriter.flush();
     }
 
-    private String serialRead() {
-        String fetchedData = "";
-        while (serialReader.hasNextLine()) {
-            fetchedData = serialReader.nextLine();
+    private String getLastStringRead() {
+        String returnValue = "";
+        for (int x = 0; x < lastStringRead.length() - 2; x++) {
+            returnValue += lastStringRead.toCharArray()[x];
         }
-        System.out.println("Read: ");
-        return fetchedData;
+        return returnValue;
+    }
+
+    public void clearLastStringRead() {
+        lastStringRead = "";
     }
 }
