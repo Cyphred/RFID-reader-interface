@@ -138,6 +138,7 @@ public class RFIDReaderInterface {
         serialPrint("challenge\n" + passcode);
         while (true) {
             if (getLastStringRead().equals("ok")) {
+                clearLastStringRead();
                 return true;
             }
             else if (getLastStringRead().equals("no")) {
@@ -145,6 +146,7 @@ public class RFIDReaderInterface {
             }
             System.out.print("");
         }
+        clearLastStringRead();
         return false;
     }
 
