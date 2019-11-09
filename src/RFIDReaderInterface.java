@@ -150,6 +150,25 @@ public class RFIDReaderInterface {
         return false;
     }
 
+    public String newPasscode() {
+        /**
+         * This method will tell the Arduino to ask the customer to enter a 6-digit PIN.
+         * This can be used when creating a new PIN, or changing an existing one.
+         * It will ask the customer to enter the PIN twice for confirmation.
+         * @return String This returns the confirmed PIN from the device.
+         */
+        serialPrint("newpass");
+        String returnValue = "";
+        while (true) {
+            if (getLastStringRead().length() == 6) {
+                returnValue = getLastStringRead();
+                clearLastStringRead();
+                break;
+            }
+        }
+        return returnValue;
+    }
+
     private void serialPrint(String input) {
         /**
          * This method sends a String to serial.
