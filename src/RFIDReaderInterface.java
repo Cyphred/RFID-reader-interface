@@ -115,17 +115,22 @@ public class RFIDReaderInterface {
     }
 
 
-    public String scan() {
+    public void scan() {
         /**
          * This method tells the Arduino to ask the customer to scan their RFID card.
-         * It will wait until it has received the 8-character unique ID of the card.
-         * @return String This returns the unique ID of the scanned RFID card as a String that is 8 characters long
          */
-        serialPrint("scan\n0");
+        serialPrint("scan");
+    }
+
+    public String getLastScannedIDSerialNumber() throws InterruptedException {
+        serialPrint("getSerial");
         while (lastStringRead.length() != 10) {
             System.out.print("");
         }
-        return getLastStringRead();
+
+        String returnValue = getLastStringRead();
+        clearLastStringRead();
+        return returnValue;
     }
 
     public boolean challenge(String passcode) {
