@@ -12,7 +12,7 @@ public class Main {
                 System.out.println("1 - Basic Scan");
                 System.out.println("2 - Challenge");
                 System.out.println("3 - New Passcode");
-                System.out.println("4 - Print Last Scanned Card");
+                System.out.println("4 - Check RFID Status");
 
                 System.out.println("\n100 - Exit");
                 System.out.print("Input : ");
@@ -24,22 +24,15 @@ public class Main {
             }
             else if (menuState == 2) {
                 System.out.print("Enter passcode : ");
-                boolean challengeResult = device.challenge(sc.nextLine());
-                if (challengeResult) {
-                    System.out.println("Challenge passed");
-                }
-                else {
-                    System.out.println("Challenge failed");
-                }
+                device.challenge(sc.nextLine());
                 menuState = 0;
             }
             else if (menuState == 3) {
-                System.out.println("Waiting for a passcode...");
-                System.out.println("Passcode Received : " + device.newPasscode());
+                device.newPasscode();
                 menuState = 0;
             }
             else if (menuState == 4) {
-                System.out.println("SN: " + device.getLastScannedIDSerialNumber());
+                device.checkRFIDStatus();
                 menuState = 0;
             }
             else {

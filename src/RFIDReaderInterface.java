@@ -1,7 +1,5 @@
 import com.fazecast.jSerialComm.*;
-
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.util.Scanner;
 
 /**
@@ -20,6 +18,10 @@ public class RFIDReaderInterface {
     private PrintWriter serialWriter;
     private String lastStringRead = "";
     private byte[] bytesRead;
+    private String RFIDcacheFilePath = "etc\\rfid-cache.file"; // TODO Change to actual directory of cache file
+    private boolean writeDataToCache = false;
+    private boolean deviceReady = false;
+    private boolean serialCommDebugging = true; // Set to true when checking data sent/received through serial
 
     public RFIDReaderInterface() {
         /**
@@ -27,11 +29,10 @@ public class RFIDReaderInterface {
          * with the Arduino with ease.
          */
         System.out.println("===== RFIDReaderInterface by Cyphred =====");
-        System.out.println("Initializing");
 
-        System.out.println("Fetching available COM Ports");
+        System.out.println("> Fetching available COM Ports...");
         SerialPort availablePorts[] = SerialPort.getCommPorts(); // Gets all available COM Ports
-        System.out.println(availablePorts.length + " COM Port/s found");
+        System.out.println("> " + availablePorts.length + " COM Port/s found");
 
         int portNumbers = 1; // gives port numbers when printed
         // lists all available ports to console
@@ -41,11 +42,11 @@ public class RFIDReaderInterface {
 
         // Enhanced for loop to iterate through all available COM ports
         // Each port will be tried 3 times before moving on to the next available port
-        System.out.println("Attempting to open serial port");
+        System.out.println("> Attempting to open serial port");
         boolean portOpened = false;
         availablePortsLoop:
         for (SerialPort sp: availablePorts) {
-            System.out.println("Attempting to open \"" + sp.getSystemPortName() + "\"");
+            System.out.println("> Attempting to open " + sp.getSystemPortName());
             sp.setComPortParameters(115200, 8, 1, 0); // default connection settings for arduino
             sp.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 0, 0);
 
@@ -54,14 +55,14 @@ public class RFIDReaderInterface {
             for (int attempt = 0; attempt < 3; attempt++) {
                 if (sp.openPort()) {
                     // if port is successfully opened
-                    System.out.println("\"" + sp.getSystemPortName() + "\" successfully opened");
+                    System.out.println("> " + sp.getSystemPortName() + " successfully opened");
                     selectedPort = sp; // assigns opened port to selectedPort;
                     portOpened = true;
                     break portOpenAttemptsLoop; // stop attempting to open other ports
                 }
                 else {
                     // if port cannot be opened
-                    System.out.println("Cannot open \"" + sp.getSystemPortName() + "\". Will try again... (Attempt " + (attempt + 1) + ")");
+                    System.out.println("[!] Cannot open \"" + sp.getSystemPortName() + "\". Will try again... (Attempt " + (attempt + 1) + ")");
                 }
             }
 
@@ -71,7 +72,7 @@ public class RFIDReaderInterface {
                 break availablePortsLoop;
             }
             else {
-                System.out.println("Failed to open \"" + sp.getSystemPortName() + "\" after 3 attempts.");
+                System.out.println("[!] Failed to open \"" + sp.getSystemPortName() + "\" after 3 attempts.");
             }
         }
 
@@ -95,83 +96,80 @@ public class RFIDReaderInterface {
                         e.printStackTrace();
                     }
                     // For checking data received through serial, uncomment the line below
-                    //System.out.println(numRead + " bytes read, " + lastStringRead.length() + " characters : \"" + lastStringRead + "\"");
+                    if (serialCommDebugging) {
+                        System.out.print("[RECEIVED] ");
+                        System.out.println(numRead + " bytes read, " + lastStringRead.length() + " characters : \"" + lastStringRead + "\"");
+                    }
+
+                    // Writes the next received data to a cache file
+                    if (writeDataToCache) {
+                        writeDataToCache = false;
+                        writeToCache(getLastStringRead(), RFIDcacheFilePath);
+                    }
+
+                    if (!deviceReady) {
+                        if (getLastStringRead().equals("99")) {
+                            serialPrint("start");
+                        }
+                        else if (getLastStringRead().equals("1")) {
+                            deviceReady = true;
+                        }
+                    }
                 }
             });
             serialReader = new Scanner(selectedPort.getInputStream()); // Start input stream for receiving data over serial
             serialWriter = new PrintWriter(selectedPort.getOutputStream()); // Start output stream for receiving data over serial
             // TODO Setup proper waiting for device ready status
             // TODO Continue documenting code from here
-            System.out.println("Waiting for device to be ready");
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {}
+            System.out.println("> Establishing connection with device...");
+            while (!deviceReady) {
+                System.out.print("");
+            }
+            System.out.println("> Connection Established!");
         }
         else {
-            System.out.println("Could not open any ports.");
+            System.out.println("[!] Could not open any ports.");
         }
 
         System.out.println("===== RFIDReaderInterface: End of Initialization =====");
     }
 
-
     public void scan() {
         /**
-         * This method tells the Arduino to ask the customer to scan their RFID card.
+         * This method tells the Arduino to ask the customer to scan their RFID card,
+         * then writes the device's response to cache file.
          */
+        writeDataToCache = true;
         serialPrint("scan");
     }
 
-    public String getLastScannedIDSerialNumber() throws InterruptedException {
-        serialPrint("getSerial");
-        while (lastStringRead.length() != 10) {
-            System.out.print("");
-        }
-
-        String returnValue = getLastStringRead();
-        clearLastStringRead();
-        return returnValue;
-    }
-
-    public boolean challenge(String passcode) {
+    public void challenge(String passcode) {
         /**
-         * This method is for authentication of the ownership of a scanned RFID Card.
-         * Once called, it will wait until the challenge is completed.
-         * @param passcode This is the 6-digit PIN/Security code that the customer will have to match.
-         * @return boolean This returns the result of the challenge as a boolean.
+         * This method is for authentication of the ownership of a scanned RFID Card,
+         * then writes the device's response to cache file.
          */
+        writeDataToCache = true;
         serialPrint("challenge\n" + passcode);
-        while (true) {
-            if (getLastStringRead().equals("ok")) {
-                clearLastStringRead();
-                return true;
-            }
-            else if (getLastStringRead().equals("no")) {
-                break;
-            }
-            System.out.print("");
-        }
-        clearLastStringRead();
-        return false;
     }
 
-    public String newPasscode() {
+    public void newPasscode() {
         /**
          * This method will tell the Arduino to ask the customer to enter a 6-digit PIN.
          * This can be used when creating a new PIN, or changing an existing one.
-         * It will ask the customer to enter the PIN twice for confirmation.
-         * @return String This returns the confirmed PIN from the device.
+         * It will ask the customer to enter the PIN twice for confirmation,
+         * then writes the device's response to cache file.
          */
+        writeDataToCache = true;
         serialPrint("newpass");
-        String returnValue = "";
-        while (true) {
-            if (getLastStringRead().length() == 6) {
-                returnValue = getLastStringRead();
-                clearLastStringRead();
-                break;
-            }
-        }
-        return returnValue;
+    }
+
+    public void checkRFIDStatus() {
+        /**
+         * This method checks the RFID module's status with the Arduino,
+         * then writes the device's response to cache file.
+         */
+        writeDataToCache = true;
+        serialPrint("check\nnfc");
     }
 
     private void serialPrint(String input) {
@@ -180,8 +178,33 @@ public class RFIDReaderInterface {
          * This is where Java will send commands to the Arduino.
          * @param input This will be the String that will be sent to serial.
          */
+        if (serialCommDebugging) {
+            System.out.println("[SENT] " + input);
+        }
         serialWriter.print(input);
         serialWriter.flush();
+    }
+
+    private void writeToCache(String data, String path) {
+        /**
+         * This method writes data to a specified cache file.
+         * @param data This will be the data written to the file.
+         * @param path This is where the file is/will be located.
+         */
+        BufferedWriter writer = null;
+        try {
+            writer = new BufferedWriter(new FileWriter(path));
+            writer.write(data);
+            writer.close();
+            if (serialCommDebugging) {
+                System.out.println("[WRITE] " + data);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            if (serialCommDebugging) {
+                System.out.println("[WRITE UNSUCCESSFUL]");
+            }
+        }
     }
 
     private String getLastStringRead() {
