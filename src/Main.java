@@ -1,7 +1,7 @@
 import java.util.Scanner;
 
 public class Main {
-    public static Scanner sc = new Scanner(System.in); // TODO Remove temporary Scanner in Main Class
+    public static Scanner sc = new Scanner(System.in);
     public static RFIDReaderInterface device = new RFIDReaderInterface();
     public static void main(String[] args) throws InterruptedException {
         int menuState = 0;

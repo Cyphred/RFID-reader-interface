@@ -18,7 +18,7 @@ public class RFIDReaderInterface {
     private PrintWriter serialWriter;
     private String lastStringRead = "";
     private byte[] bytesRead;
-    private String RFIDcacheFilePath = "etc\\rfid-cache.file"; // TODO Change to actual directory of cache file
+    private String RFIDcacheFilePath = "etc\\rfid-cache.file";
     private boolean writeDataToCache = false;
     private boolean deviceReady = false;
     private boolean serialCommDebugging = true; // Set to true when checking data sent/received through serial
@@ -119,7 +119,6 @@ public class RFIDReaderInterface {
             });
             serialReader = new Scanner(selectedPort.getInputStream()); // Start input stream for receiving data over serial
             serialWriter = new PrintWriter(selectedPort.getOutputStream()); // Start output stream for receiving data over serial
-            // TODO Setup proper waiting for device ready status
             // TODO Continue documenting code from here
             System.out.println("> Establishing connection with device...");
             while (!deviceReady) {
